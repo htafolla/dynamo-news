@@ -1,51 +1,48 @@
 ---
 name: dynamo-news-daily-summary
-description: "Cross-correlates X feeds on AI, agents, governance, sovereignty, local inference and Web3. Applies Dynamo Governance Layer to evaluate and validate findings. Generates structured daily briefings with trends, top insights, and governance verdicts."
+description: "Generates daily AI × Web3 / Sovereign AI briefings using real X data and the Dynamo Governance Layer."
 ---
 
 # Dynamo News Daily Summary Skill
 
-**Purpose:** Deliver high-signal daily briefings on the AI × Web3 / Sovereign AI intersection by intelligently querying X activity and applying the Dynamo Governance Layer.
+**Purpose:** Produce high-signal daily briefings by searching X, applying Dynamo governance, and synthesizing the best posts.
 
-## Core Workflow (execute in this order)
+## How to Run
 
-1. **Establish Time Window**
-   Use current date. Search since: yesterday or last 48 hours.
+When this skill is triggered, it executes:
 
-2. **Execute Multi-Vector X Searches**
-   - Personalized searches from @Blaze0x1 feed + interests (sovereignty, local AI, governance, Polymarket)
-   - Use semantic + keyword searches with engagement filters
+```bash
+python dynamo_news/skill_runner.py
+```
 
-3. **Cross-Correlation & Ranking**
-   - Rank by composite value score (engagement, credibility, depth, cross-link strength)
+This runner:
+1. Uses the native `x_search` tool available inside the Hermes agent
+2. Fetches recent high-signal posts
+3. Runs every post through the full Dynamo Governance Layer (evaluate_governance + PHI/TAU matrix)
+4. Ranks results and generates the standard report
+5. Saves the report to `artifacts/`
+6. Prints the report to screen
 
-4. **Dynamo Governance Layer**
-   - Use `evaluate_governance` — core governance (recommendation: PASS / NEEDS_REVISION / REJECT)
-   - Use `govern_with_solar` — strategic proposals with real-time NOAA GOES solar context
-   - Only keep items that pass governance (PASS + confidence >= 0.75)
+## Governance Rules
 
-5. **Synthesize Daily Briefing**
-   - Include actual tweet text and direct links
-   - Tag every post with Repertoire Category
+- Posts are evaluated using resonance + isotopic ratio
+- Only strong signals (PASS or high-confidence NEEDS_REVISION) are prioritized
+- Reports include governance scores for transparency
 
-6. **Quality Controls**
-   - Always disclose search parameters and Dynamo results
+## Schedule
 
-## Repertoire Categories (Current)
+Recommended cron triggers:
+- 04:00 CST
+- 13:00 CST
 
-- Agent Infra & Tooling
-- Memory & Post-RAG Systems
-- Local Inference & Models
-- Local AI OS & Sovereignty Stacks
-- Governance & Security
-- Polymarket / Execution & Real-Money Agents
-- Hybrid Architecture
-- Meta-Curation / Ecosystem Directories
-- Creative Sovereignty / Content Automation
+## Output Format
 
-## Next Priorities
+The skill produces the standard Dynamo News report format with:
+- Author + engagement stats
+- Post summary
+- Governance result + confidence
+- Direct X link
 
-- Expand full 230-item Master Repertoire table
-- Add real X tool integration (x_search + xmcp)
-- Automate daily cron runs
-- Improve signal filtering and curation engine
+## Version
+
+v3.0 — Fully integrated skill with native x_search support

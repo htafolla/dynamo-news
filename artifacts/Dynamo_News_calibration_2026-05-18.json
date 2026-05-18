@@ -1,0 +1,97 @@
+[
+  {
+    "author": "@screenest_ai",
+    "text_preview": "Local LLMs give you free inference, complete privacy, offline access, model owne",
+    "passed": true,
+    "matrix": {
+      "recommendation": "PASS",
+      "confidence": 0.89,
+      "voteWeight": 1.15,
+      "reasons": [
+        "Solid alignment above TAU threshold"
+      ]
+    },
+    "raw_metrics": {
+      "resonanceScore": 0.85,
+      "isotopicRatio": 0.9558215491724676,
+      "vortexVolume": 3e+25,
+      "historicalCoherence": 0.8
+    }
+  },
+  {
+    "author": "@jun_song",
+    "text_preview": "Skills worth learning in 2026: Local LLM/Inference Hardware, privacy/cybersecuri",
+    "passed": false,
+    "matrix": {
+      "recommendation": "REJECT",
+      "confidence": 0.84,
+      "voteWeight": 1.0,
+      "reasons": [
+        "Signal below critical threshold (1 - TAU)"
+      ]
+    },
+    "raw_metrics": {
+      "resonanceScore": 0.85,
+      "isotopicRatio": 0.4161436568789512,
+      "vortexVolume": 3e+25,
+      "historicalCoherence": 0.8
+    }
+  },
+  {
+    "author": "@thehacktivator",
+    "text_preview": "Private/offline agents \u2014 building local recon agents, coding assistants, and per",
+    "passed": true,
+    "matrix": {
+      "recommendation": "PASS",
+      "confidence": 0.89,
+      "voteWeight": 1.15,
+      "reasons": [
+        "Solid alignment above TAU threshold"
+      ]
+    },
+    "raw_metrics": {
+      "resonanceScore": 0.85,
+      "isotopicRatio": 0.996927123992507,
+      "vortexVolume": 3e+25,
+      "historicalCoherence": 0.8
+    }
+  },
+  {
+    "author": "@SergeiFonov",
+    "text_preview": "Developers creating local AI chat apps for iPhone that work completely offline a",
+    "passed": false,
+    "matrix": {
+      "recommendation": "REJECT",
+      "confidence": 0.84,
+      "voteWeight": 1.0,
+      "reasons": [
+        "Signal below critical threshold (1 - TAU)"
+      ]
+    },
+    "raw_metrics": {
+      "resonanceScore": 0.85,
+      "isotopicRatio": 0.3461889445655951,
+      "vortexVolume": 3e+25,
+      "historicalCoherence": 0.8
+    }
+  },
+  {
+    "author": "@BrusselsMorning",
+    "text_preview": "Europe pushing open-source and investment for AI sovereignty. National strategy ",
+    "passed": false,
+    "matrix": {
+      "recommendation": "REJECT",
+      "confidence": 0.84,
+      "voteWeight": 1.0,
+      "reasons": [
+        "Signal below critical threshold (1 - TAU)"
+      ]
+    },
+    "raw_metrics": {
+      "resonanceScore": 0.85,
+      "isotopicRatio": 0.6099748076951259,
+      "vortexVolume": 3e+25,
+      "historicalCoherence": 0.8
+    }
+  }
+]
