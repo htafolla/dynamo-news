@@ -1,5 +1,5 @@
 #!/bin/bash
-# Dynamo News - Daily Report Runner
+# Dynamo News - Daily Report Runner (Production)
 # Runs at 04:00 and 13:00 CST
 # Usage: DYNAMO_NEWS_ROOT=/path/to/dynamo-news ./scripts/run_daily_report.sh
 
@@ -21,6 +21,7 @@ fi
 
 export DYNAMO_NEWS_ROOT="$ROOT"
 export PYTHONPATH="$ROOT:$PYTHONPATH"
+export HERMES_RUNTIME=1
 
 python3 dynamo_news/daily_correlator.py >> "$LOG_DIR/daily.log" 2>&1
 

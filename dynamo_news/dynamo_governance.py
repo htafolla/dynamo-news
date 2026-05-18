@@ -36,17 +36,11 @@ def _call_tool(tool_name: str, params: dict[str, Any]) -> Optional[dict]:
         except Exception as e:
             last_error = e
             if attempt < MAX_RETRIES - 1:
-                delay = RETRY_DELAY * (2**attempt)
-                print(
-                    f"[Dynamo] Retry {attempt + 1}/{MAX_RETRIES} "
-                    f"for {tool_name} in {delay:.1f}s: {e}"
-                )
+                delay = RETRY_DELAY * (2 ** attempt)
+                print(f"[Dynamo] Retry {attempt + 1}/{MAX_RETRIES} for {tool_name} in {delay:.1f}s: {e}")
                 time.sleep(delay)
 
-    print(
-        f"[Dynamo] All {MAX_RETRIES} retries failed "
-        f"for {tool_name}: {last_error}"
-    )
+    print(f"[Dynamo] All {MAX_RETRIES} retries failed for {tool_name}: {last_error}")
     return None
 
 
@@ -58,7 +52,7 @@ def evaluate_governance(
         "proposalId": proposal_id,
         "proposalText": proposal_text,
         "agentReviews": agent_reviews or [
-            "Signal relevance to AI \u00d7 Web3 sovereignty and governance"
+            "Signal relevance to AI × Web3 sovereignty and governance"
         ],
     }
     return _call_tool("evaluate_governance", params)
@@ -70,10 +64,7 @@ def govern_with_solar(proposal_text: str, base_vote_weight: float = 1.0) -> Opti
 
 
 def evaluate_post(post_text: str) -> dict:
-    """Run full governance and return structured result with matrix output.
-
-    Returns dict with keys: passed, matrix, raw_metrics, solar_activity, error.
-    """
+    """Run full governance and return structured result with matrix output."""
     gov_result = evaluate_governance(post_text)
     if not gov_result:
         return {"passed": False, "error": "governance_unreachable", "matrix": None}
@@ -103,7 +94,7 @@ def evaluate_post(post_text: str) -> dict:
             print(f"    • {r}")
 
         return {
-            "passed": matrix["recommendation"] == "PASS" and matrix["confidence"] >= 0.75,
+            "passed": matrix["recommendation"] == "PASS" and matrix["confidence"] >= 0.72,
             "matrix": matrix,
             "raw_metrics": {
                 "resonanceScore": resonance,
@@ -116,7 +107,7 @@ def evaluate_post(post_text: str) -> dict:
 
     recommendation = gov_result.get("recommendation", "REJECT")
     confidence = gov_result.get("confidence", 0.0)
-    passed = recommendation == "PASS" and confidence >= 0.75
+    passed = recommendation == "PASS" and confidence >= 0.72
     return {
         "passed": passed,
         "matrix": {"recommendation": recommendation, "confidence": confidence},
