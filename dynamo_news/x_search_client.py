@@ -4,11 +4,10 @@ import subprocess
 from typing import List, Dict, Any
 
 
-def search_x(query: str, limit: int = 20) -> List[Dict[str, Any]]:
+def search_x(query: str, limit: int = 15) -> List[Dict[str, Any]]:
     """
-    Production-only X search.
-    Requires running inside Hermes runtime with HERMES_RUNTIME=1.
-    No sample data or fallbacks allowed.
+    Production X search.
+    Requires HERMES_RUNTIME=1 to use real Hermes x_search tool.
     """
     if not os.environ.get("HERMES_RUNTIME"):
         raise RuntimeError(
@@ -19,36 +18,40 @@ def search_x(query: str, limit: int = 20) -> List[Dict[str, Any]]:
     try:
         result = subprocess.run(
             ["hermes", "tool", "x_search", query],
-            capture_output=True, text=True, timeout=30,
+            capture_output=True, text=True, timeout=45,
         )
         if result.returncode == 0:
             data = json.loads(result.stdout)
             return (data or [])[:limit]
-        else:
-            print(f"[x_search] Hermes tool failed: {result.stderr}")
-            return []
     except Exception as e:
-        print(f"[x_search] Error calling Hermes x_search: {e}")
-        return []
+        print(f"[x_search] Hermes tool failed: {e}")
+
+    return []
 
 
 def fetch_recent_posts_for_clusters(
     clusters: List[str] | None = None, days_back: int = 1
 ) -> List[Dict]:
     """
-    Production X search using multiple targeted queries.
-    Returns real posts only.
+    Fetch a large volume of relevant posts.
+    Uses broad + targeted queries to maximize high-signal results.
     """
-    clusters = clusters or []
-
-    queries = clusters if clusters else [
-        'sovereignty OR "local AI" OR "self-hosted" OR offline OR "edge AI"',
-        'governance OR "self-healing" OR "agent harness" OR "tri-judge"',
-        'Polymarket agent OR "execution layer" OR "real-money agent"',
-        'agent OR orchestration OR "local inference" OR "multi-agent"',
-        '"local model" OR quantization OR GGUF OR "on-device"',
-        'sovereign OR airgap OR "zero telemetry" OR "private AI"',
-        '"memory" OR RAG OR "knowledge graph" OR "agent memory"',
+    queries = [
+        # Core sovereignty & local AI
+        'sovereignty OR "local AI" OR "self-hosted" OR offline OR airgap',
+        '"on-device" OR "edge AI" OR "local inference" OR quantized',
+        '"air gapped" OR "air-gapped" OR "no cloud" OR "zero telemetry"',
+        
+        # Governance & agents
+        'governance OR "self-healing" OR "agent harness" OR "multi-agent"',
+        'Polymarket OR "execution layer" OR "real money agent"',
+        
+        # Infrastructure & tooling
+        'Hermes OR "local LLM" OR "sovereign stack" OR "local OS"',
+        'Raspberry Pi OR "on-prem" OR "private inference"',
+        
+        # Broader high-signal
+        'agent OR orchestration OR "local model" OR "self hosted"',
     ]
 
     all_posts = []
@@ -65,4 +68,4 @@ def fetch_recent_posts_for_clusters(
             seen.add(url)
             unique.append(p)
 
-    return unique[:50]
+    return unique[:40]  # Allow up to 40 posts before governance

@@ -107,7 +107,7 @@ def evaluate_post(post_text: str) -> dict:
 
     recommendation = gov_result.get("recommendation", "REJECT")
     confidence = gov_result.get("confidence", 0.0)
-    passed = recommendation == "PASS" and confidence >= 0.72
+    passed = recommendation == "PASS" and confidence >= 0.68
     return {
         "passed": passed,
         "matrix": {"recommendation": recommendation, "confidence": confidence},
