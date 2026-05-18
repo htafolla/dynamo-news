@@ -1,4 +1,5 @@
 import json
+import os
 import time
 import uuid
 from typing import Any, Optional
@@ -6,6 +7,8 @@ from typing import Any, Optional
 import requests
 
 from dynamo_news.governance_core import apply_decision_matrix
+
+CALIBRATE = os.environ.get("DYNAMO_NEWS_CALIBRATE") == "1"
 
 GOVERNANCE_ENDPOINT = (
     "https://mcp-production-80e2.up.railway.app/call_connected_tool"
@@ -66,21 +69,15 @@ def govern_with_solar(proposal_text: str, base_vote_weight: float = 1.0) -> Opti
     return _call_tool("govern_with_solar", params)
 
 
-def should_include_post(post_text: str, min_confidence: float = 0.75) -> bool:
-    """Full governance check with client-side PHI/TAU matrix.
+def evaluate_post(post_text: str) -> dict:
+    """Run full governance and return structured result with matrix output.
 
-    Uses the Dynamo endpoint's raw resonance/metrics (when available) but applies
-    the same PHI/TAU decision matrix that StringRay uses locally, so the outcome
-    is consistent with StringRay governance-core.ts.
-
-    Fail-closed: if governance is unreachable the post is excluded.
+    Returns dict with keys: passed, matrix, raw_metrics, solar_activity, error.
     """
     gov_result = evaluate_governance(post_text)
     if not gov_result:
-        print("[Dynamo] Governance call failed — excluding post (fail-closed)")
-        return False
+        return {"passed": False, "error": "governance_unreachable", "matrix": None}
 
-    # Extract raw metrics from Dynamo response to apply PHI/TAU client-side
     resonance = gov_result.get("resonanceScore")
     isotopic_ratio = gov_result.get("isotopicRatio")
 
@@ -105,16 +102,38 @@ def should_include_post(post_text: str, min_confidence: float = 0.75) -> bool:
         for r in matrix["reasons"]:
             print(f"    • {r}")
 
-        passed = matrix["recommendation"] == "PASS" and matrix["confidence"] >= min_confidence
-    else:
-        # Fallback: use Dynamo's own recommendation (no raw metrics available)
-        recommendation = gov_result.get("recommendation", "REJECT")
-        confidence = gov_result.get("confidence", 0.0)
-        passed = recommendation == "PASS" and confidence >= min_confidence
-        if not passed:
-            print(f"[Dynamo] Post rejected: {recommendation} (conf={confidence})")
+        return {
+            "passed": matrix["recommendation"] == "PASS" and matrix["confidence"] >= 0.75,
+            "matrix": matrix,
+            "raw_metrics": {
+                "resonanceScore": resonance,
+                "isotopicRatio": isotopic_ratio,
+                "vortexVolume": gov_result.get("vortexVolume"),
+                "historicalCoherence": gov_result.get("historicalCoherence"),
+            },
+            "solar_activity": solar_activity,
+        }
 
-    return passed
+    recommendation = gov_result.get("recommendation", "REJECT")
+    confidence = gov_result.get("confidence", 0.0)
+    passed = recommendation == "PASS" and confidence >= 0.75
+    return {
+        "passed": passed,
+        "matrix": {"recommendation": recommendation, "confidence": confidence},
+        "raw_metrics": None,
+    }
+
+
+def should_include_post(post_text: str) -> bool:
+    """High-level gate. In calibration mode, always returns True and logs matrix."""
+    result = evaluate_post(post_text)
+    if CALIBRATE:
+        if not result.get("passed"):
+            m = result.get("matrix", {})
+            print(f"  [CALIBRATE] Would have REJECTED — {m.get('recommendation')} "
+                  f"(conf={m.get('confidence')})")
+        return True
+    return result.get("passed", False)
 
 
 if __name__ == "__main__":

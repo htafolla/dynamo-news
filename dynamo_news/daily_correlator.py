@@ -1,9 +1,10 @@
 import csv
+import json
 import os
 from datetime import datetime
 from pathlib import Path
 from dynamo_news.x_search_client import fetch_recent_posts_for_clusters
-from dynamo_news.dynamo_governance import should_include_post
+from dynamo_news.dynamo_governance import evaluate_post, should_include_post, CALIBRATE
 
 PROJECT_ROOT = Path(os.environ.get("DYNAMO_NEWS_ROOT", Path(__file__).resolve().parent.parent))
 
@@ -53,26 +54,49 @@ def main():
 
     print("Running Dynamo Governance filter...\n")
     approved_posts = []
+    calibration_log = [] if CALIBRATE else None
     for post in raw_posts:
         text = post.get("text", post.get("summary", ""))
-        if should_include_post(text):
+        if CALIBRATE:
+            result = evaluate_post(text)
+            row = {
+                "author": post.get("author"),
+                "text_preview": text[:80],
+                "passed": result.get("passed"),
+                "matrix": result.get("matrix"),
+                "raw_metrics": result.get("raw_metrics"),
+            }
+            calibration_log.append(row)
             approved_posts.append(post)
-            print(f"  PASSED: {post.get('author', '?')}")
         else:
-            print(f"  REJECTED by governance: {post.get('author', '?')}")
+            if should_include_post(text):
+                approved_posts.append(post)
+                print(f"  PASSED: {post.get('author', '?')}")
+            else:
+                print(f"  REJECTED by governance: {post.get('author', '?')}")
 
-    print(f"\nGovernance complete: {len(approved_posts)}/{len(raw_posts)} posts approved\n")
+    mode = "CALIBRATION" if CALIBRATE else "PRODUCTION"
+    print(f"\nGovernance complete ({mode}): {len(approved_posts)}/{len(raw_posts)} posts\n")
 
     briefing = generate_briefing(approved_posts)
 
     out_dir = PROJECT_ROOT / "artifacts"
     out_dir.mkdir(exist_ok=True)
-    filename = out_dir / f"Dynamo_News_{datetime.now().strftime('%Y-%m-%d')}.md"
+    today = datetime.now().strftime("%Y-%m-%d")
+    filename = out_dir / f"Dynamo_News_{today}.md"
 
     with open(filename, "w") as f:
         f.write(briefing)
 
-    print(f"Governed briefing saved: {filename}")
+    print(f"Briefing saved: {filename}")
+
+    if calibration_log:
+        cal_path = out_dir / f"Dynamo_News_calibration_{today}.json"
+        with open(cal_path, "w") as f:
+            json.dump(calibration_log, f, indent=2, default=str)
+        print(f"Calibration log saved: {cal_path}")
+        passed = sum(1 for r in calibration_log if r["passed"])
+        print(f"  Would have approved: {passed}/{len(calibration_log)}")
 
 
 if __name__ == "__main__":
