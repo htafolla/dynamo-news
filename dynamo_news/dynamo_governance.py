@@ -1,104 +1,126 @@
-#!/usr/bin/env python3
-"""
-Dynamo Governance Client (v2.1)
-Handles calls to the external Dynamo Governance MCP endpoint.
-"""
+import json
+import time
+import uuid
+from typing import Any, Optional
 
 import requests
-import json
-import uuid
-from typing import Dict, Any, Optional
-from datetime import datetime
 
-GOVERNANCE_ENDPOINT = "https://mcp-production-80e2.up.railway.app/call_connected_tool"
+from dynamo_news.governance_core import apply_decision_matrix
+
+GOVERNANCE_ENDPOINT = (
+    "https://mcp-production-80e2.up.railway.app/call_connected_tool"
+)
 TIMEOUT_SECONDS = 12
-
-def _call_tool(tool_name: str, params: Dict[str, Any]) -> Optional[Dict]:
-    """Generic caller for Dynamo governance tools."""
-    payload = {
-        "tool_name": tool_name,
-        "params": params
-    }
-
-    try:
-        response = requests.post(
-            GOVERNANCE_ENDPOINT,
-            json=payload,
-            headers={"Content-Type": "application/json"},
-            timeout=TIMEOUT_SECONDS
-        )
-        response.raise_for_status()
-        data = response.json()
-        return data.get("result")
-    except Exception as e:
-        print(f"[Dynamo Governance] Error calling {tool_name}: {e}")
-        return None
+MAX_RETRIES = 3
+RETRY_DELAY = 1.0
 
 
-def evaluate_governance(proposal_text: str, agent_reviews: list = None) -> Optional[Dict]:
-    """
-    Evaluates a post/proposal using the core governance model.
-    Returns recommendation: PASS | NEEDS_REVISION | REJECT
-    """
+def _call_tool(tool_name: str, params: dict[str, Any]) -> Optional[dict]:
+    """Generic caller with exponential backoff."""
+    payload = {"tool_name": tool_name, "params": params}
+
+    last_error = None
+    for attempt in range(MAX_RETRIES):
+        try:
+            resp = requests.post(
+                GOVERNANCE_ENDPOINT,
+                json=payload,
+                headers={"Content-Type": "application/json"},
+                timeout=TIMEOUT_SECONDS,
+            )
+            resp.raise_for_status()
+            return resp.json().get("result")
+        except Exception as e:
+            last_error = e
+            if attempt < MAX_RETRIES - 1:
+                delay = RETRY_DELAY * (2**attempt)
+                print(
+                    f"[Dynamo] Retry {attempt + 1}/{MAX_RETRIES} "
+                    f"for {tool_name} in {delay:.1f}s: {e}"
+                )
+                time.sleep(delay)
+
+    print(
+        f"[Dynamo] All {MAX_RETRIES} retries failed "
+        f"for {tool_name}: {last_error}"
+    )
+    return None
+
+
+def evaluate_governance(
+    proposal_text: str, agent_reviews: list[str] | None = None
+) -> Optional[dict]:
     proposal_id = f"post-{uuid.uuid4().hex[:8]}"
-
     params = {
         "proposalId": proposal_id,
         "proposalText": proposal_text,
-        "agentReviews": agent_reviews or ["Signal relevance to AI × Web3 sovereignty and governance"]
+        "agentReviews": agent_reviews or [
+            "Signal relevance to AI \u00d7 Web3 sovereignty and governance"
+        ],
     }
-
-    result = _call_tool("evaluate_governance", params)
-    return result
+    return _call_tool("evaluate_governance", params)
 
 
-def govern_with_solar(proposal_text: str, base_vote_weight: float = 1.0) -> Optional[Dict]:
-    """
-    Runs governance with real-time solar context (NOAA GOES).
-    Returns finalRecommendation and solarContext.
-    """
-    params = {
-        "proposal": proposal_text,
-        "baseVoteWeight": base_vote_weight
-    }
-
-    result = _call_tool("govern_with_solar", params)
-    return result
+def govern_with_solar(proposal_text: str, base_vote_weight: float = 1.0) -> Optional[dict]:
+    params = {"proposal": proposal_text, "baseVoteWeight": base_vote_weight}
+    return _call_tool("govern_with_solar", params)
 
 
 def should_include_post(post_text: str, min_confidence: float = 0.75) -> bool:
+    """Full governance check with client-side PHI/TAU matrix.
+
+    Uses the Dynamo endpoint's raw resonance/metrics (when available) but applies
+    the same PHI/TAU decision matrix that StringRay uses locally, so the outcome
+    is consistent with StringRay governance-core.ts.
+
+    Fail-closed: if governance is unreachable the post is excluded.
     """
-    Full governance check for a post.
-    Returns True only if governance recommends PASS with sufficient confidence.
-    """
-    # First pass: core governance
     gov_result = evaluate_governance(post_text)
-
     if not gov_result:
-        print("[Dynamo] Governance call failed — falling back to inclusion")
-        return True  # Fail open for now
-
-    recommendation = gov_result.get("recommendation", "REJECT")
-    confidence = gov_result.get("confidence", 0.0)
-
-    if recommendation != "PASS" or confidence < min_confidence:
-        print(f"[Dynamo] Post rejected by governance: {recommendation} (conf={confidence})")
+        print("[Dynamo] Governance call failed — excluding post (fail-closed)")
         return False
 
-    # Second pass: solar-enhanced check (optional but recommended)
-    solar_result = govern_with_solar(post_text)
-    if solar_result:
-        final_rec = solar_result.get("finalRecommendation", recommendation)
-        if final_rec != "PASS":
-            print(f"[Dynamo] Post rejected after solar adjustment: {final_rec}")
-            return False
+    # Extract raw metrics from Dynamo response to apply PHI/TAU client-side
+    resonance = gov_result.get("resonanceScore")
+    isotopic_ratio = gov_result.get("isotopicRatio")
 
-    return True
+    if resonance is not None and isotopic_ratio is not None:
+        solar_activity = "quiet"
+        solar_result = govern_with_solar(post_text)
+        if solar_result:
+            sc = solar_result.get("solarContext", {})
+            solar_activity = sc.get("solarActivityLevel", "quiet")
+
+        matrix = apply_decision_matrix(
+            resonance=resonance,
+            isotopic_ratio=isotopic_ratio,
+            vortex_volume=gov_result.get("vortexVolume"),
+            historical_coherence=gov_result.get("historicalCoherence"),
+            solar_activity=solar_activity,
+        )
+
+        row = f"resonance={resonance:.3f} ratio={isotopic_ratio:.3f}"
+        print(f"  [PHI/TAU] {row} → {matrix['recommendation']} "
+              f"(conf={matrix['confidence']} w={matrix['voteWeight']})")
+        for r in matrix["reasons"]:
+            print(f"    • {r}")
+
+        passed = matrix["recommendation"] == "PASS" and matrix["confidence"] >= min_confidence
+    else:
+        # Fallback: use Dynamo's own recommendation (no raw metrics available)
+        recommendation = gov_result.get("recommendation", "REJECT")
+        confidence = gov_result.get("confidence", 0.0)
+        passed = recommendation == "PASS" and confidence >= min_confidence
+        if not passed:
+            print(f"[Dynamo] Post rejected: {recommendation} (conf={confidence})")
+
+    return passed
 
 
 if __name__ == "__main__":
-    # Quick test
-    test_post = "Local LLMs give you free inference, complete privacy, offline access, model ownership, and fine-tuning capability."
-    print("Testing governance on sample post...")
-    result = evaluate_governance(test_post)
-    print(json.dumps(result, indent=2))
+    test = (
+        "Local LLMs give you free inference, complete privacy, "
+        "offline access, model ownership, and fine-tuning capability."
+    )
+    print("Testing governance on sample post...\n")
+    print(f"Include post? {should_include_post(test)}")

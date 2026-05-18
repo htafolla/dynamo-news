@@ -9,27 +9,26 @@ description: "Cross-correlates X feeds on AI, agents, governance, sovereignty, l
 
 ## Core Workflow (execute in this order)
 
-1. **Establish Time Window**  
+1. **Establish Time Window**
    Use current date. Search since: yesterday or last 48 hours.
 
-2. **Execute Multi-Vector X Searches**  
+2. **Execute Multi-Vector X Searches**
    - Personalized searches from @Blaze0x1 feed + interests (sovereignty, local AI, governance, Polymarket)
    - Use semantic + keyword searches with engagement filters
 
-3. **Cross-Correlation & Ranking**  
+3. **Cross-Correlation & Ranking**
    - Rank by composite value score (engagement, credibility, depth, cross-link strength)
 
-4. **Dynamo Governance Layer**  
-   - Use `dynamo___triangulate_signals`
-   - Use `dynamo___evaluate_governance` or `govern_with_solar`
-   - Use `dynamo___get_docs` when needed
-   - Only keep items that pass governance
+4. **Dynamo Governance Layer**
+   - Use `evaluate_governance` — core governance (recommendation: PASS / NEEDS_REVISION / REJECT)
+   - Use `govern_with_solar` — strategic proposals with real-time NOAA GOES solar context
+   - Only keep items that pass governance (PASS + confidence >= 0.75)
 
-5. **Synthesize Daily Briefing**  
-   - Include actual tweet text, engagement stats, and direct links
+5. **Synthesize Daily Briefing**
+   - Include actual tweet text and direct links
    - Tag every post with Repertoire Category
 
-6. **Quality Controls**  
+6. **Quality Controls**
    - Always disclose search parameters and Dynamo results
 
 ## Repertoire Categories (Current)
